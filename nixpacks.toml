@@ -1,0 +1,12 @@
+# nixpacks.toml
+# Specifies system packages and build configuration for Railway deployments.
+
+[phases.setup]
+# Install yt-dlp using Nix packages
+# This makes the yt-dlp command available for youtube-dl-exec
+nixPkgs = ["...", "yt-dlp"] # "..." includes default Nix packages
+
+[start]
+# Command to start the Next.js application in production mode
+# Railway automatically uses the PORT environment variable.
+cmd = "npm run start"

@@ -1,77 +1,96 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 
 interface YouTubeFormProps {
-  onSubmit: (videoId: string) => void;
-  isLoading: boolean;
+  onProcessingStart: () => void;
+  onProcessingComplete: (data: any) => void; // Define a more specific type later
+  onProcessingError: (error: string) => void;
 }
 
-const YouTubeForm: React.FC<YouTubeFormProps> = ({ onSubmit, isLoading }) => {
+const YouTubeForm: React.FC<YouTubeFormProps> = ({
+  onProcessingStart,
+  onProcessingComplete,
+  onProcessingError,
+}) => {
   const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const extractVideoId = (url: string): string | null => {
-    try {
-      const parsedUrl = new URL(url);
-      if (parsedUrl.hostname === 'youtu.be') {
-        return parsedUrl.pathname.slice(1);
-      }
-      if (parsedUrl.hostname.includes('youtube.com')) {
-        const videoId = parsedUrl.searchParams.get('v');
-        if (videoId) {
-          return videoId;
-        }
-      }
-    } catch (e) {
-      // Invalid URL format
-      return null;
-    }
-    return null;
+  const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setYoutubeUrl(event.target.value);
+    // Clear previous errors when URL changes
+    onProcessingError('');
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
-    const videoId = extractVideoId(youtubeUrl);
-
-    if (!videoId) {
-      setError('Invalid YouTube URL. Please use a valid video link (e.g., youtube.com/watch?v=... or youtu.be/...).');
+    if (!youtubeUrl.trim()) {
+      onProcessingError('Please enter a YouTube URL.');
       return;
     }
-    onSubmit(videoId);
+
+    // Basic validation (more robust validation happens server-side)
+    if (!/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/.test(youtubeUrl)) {
+        onProcessingError('Please enter a valid YouTube URL.');
+        return;
+    }
+
+
+    setIsProcessing(true);
+    onProcessingStart();
+
+    try {
+      const response = await fetch('/api/youtube-audio', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ youtubeUrl }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+      }
+
+      console.log('YouTube URL processing successful:', result);
+      onProcessingComplete(result); // Pass data to parent
+
+    } catch (error: any) {
+      console.error('Error processing YouTube URL:', error);
+      onProcessingError(error.message || 'An unknown error occurred while processing the YouTube link.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="youtube-url" className="block text-sm font-medium text-gray-700">
-          YouTube Video URL
+    <form onSubmit={handleSubmit} className="mb-6 p-4 border rounded shadow-md w-full max-w-md">
+      <h2 className="text-xl font-semibold mb-3">Process YouTube Link</h2>
+      <div className="mb-4">
+        <label htmlFor="youtubeUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Paste YouTube URL
         </label>
-        <div className="mt-1">
-          <input
-            type="url"
-            name="youtube-url"
-            id="youtube-url"
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-            placeholder="https://www.youtube.com/watch?v=..."
-            value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
-            required
-            disabled={isLoading}
-          />
-        </div>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        <input
+          type="url"
+          id="youtubeUrl"
+          name="youtubeUrl"
+          value={youtubeUrl}
+          onChange={handleUrlChange}
+          placeholder="https://www.youtube.com/watch?v=..."
+          disabled={isProcessing}
+          required
+          className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white disabled:opacity-50"
+        />
       </div>
-      <div>
-        <button
-          type="submit"
-          disabled={isLoading || !youtubeUrl}
-          className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Processing...' : 'Process YouTube Link'}
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={!youtubeUrl || isProcessing}
+        className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 transition duration-150 ease-in-out"
+      >
+        {isProcessing ? 'Processing...' : 'Process YouTube Link'}
+      </button>
     </form>
   );
 };

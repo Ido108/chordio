@@ -1,121 +1,104 @@
-import MidiWriter from 'midi-writer-js';
+import { Midi } from '@tonejs/midi';
+import { ChordResult } from './chordDetection'; // Import the interface
+import * as Tone from 'tone'; // Import Tone.js for potential chord parsing utilities if needed
 
-// Access classes via the main import
-const NoteEvent = MidiWriter.NoteEvent;
-const Track = MidiWriter.Track;
-const Writer = MidiWriter.Writer;
+// Basic mapping from chord quality symbols to intervals (semitones from root)
+// This is a simplified mapping and can be expanded significantly.
+const chordQualityIntervals: { [key: string]: number[] } = {
+  // Major Chords
+  'maj': [0, 4, 7],
+  '': [0, 4, 7], // Default to major if no quality specified
+  'M': [0, 4, 7],
+  // Minor Chords
+  'min': [0, 3, 7],
+  'm': [0, 3, 7],
+  // Dominant 7th
+  '7': [0, 4, 7, 10],
+  'dom7': [0, 4, 7, 10],
+  // Major 7th
+  'maj7': [0, 4, 7, 11],
+  'M7': [0, 4, 7, 11],
+  // Minor 7th
+  'min7': [0, 3, 7, 10],
+  'm7': [0, 3, 7, 10],
+  // Diminished
+  'dim': [0, 3, 6],
+  // Augmented
+  'aug': [0, 4, 8],
+  // Sus4
+  'sus4': [0, 5, 7],
+  // Sus2
+  'sus2': [0, 2, 7],
+  // Add more complex chords as needed (e.g., 9ths, 11ths, 13ths, altered chords)
+};
 
-// Basic type definition for a chord event (replace with a more detailed one later)
-interface ChordEvent {
-  startTime: number; // in seconds
-  endTime: number; // in seconds
-  chord: string; // e.g., "Cmaj", "G7", "Am"
-}
-
-// Simple mapping from chord names to MIDI notes (example, needs expansion)
-// This is highly simplified. Real mapping needs chord parsing (root, quality)
-// and voicing logic.
-const chordToMidiNotes = (chord: string): string[] => { // Return string[]
-  let midiNumbers: number[];
-  // Placeholder: returns a simple C major triad for any chord
-  switch (chord.toLowerCase()) {
-    case 'c':
-    case 'cmaj':
-      midiNumbers = [60, 64, 67]; // C4, E4, G4
-      break;
-    case 'g':
-    case 'gmaj':
-      midiNumbers = [67, 71, 74]; // G4, B4, D5
-      break;
-    case 'am':
-    case 'amin':
-      midiNumbers = [69, 72, 76]; // A4, C5, E5
-      break;
-    case 'f':
-    case 'fmaj':
-      midiNumbers = [65, 69, 72]; // F4, A4, C5
-      break;
-    // Add many more chords...
-    default:
-      midiNumbers = [60]; // Default to C4 if unknown
+// Function to parse a chord name (e.g., "C#m7") into root note and quality
+function parseChordName(chordName: string): { root: string; quality: string } | null {
+  // Match root note (including accidentals) and the rest as quality
+  const match = chordName.match(/^([A-G][#b]?)(.*)$/);
+  if (!match) {
+    console.warn(`Could not parse chord name: ${chordName}`);
+    return null; // Return null if parsing fails
   }
-  return midiNumbers.map(midiNumberToNoteString); // Convert numbers to strings
-};
-
-// Helper function to convert MIDI number to note string (e.g., 60 -> C4)
-const midiNumberToNoteString = (midiNumber: number): string => {
-  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const octave = Math.floor(midiNumber / 12) - 1;
-  const noteIndex = midiNumber % 12;
-  return noteNames[noteIndex] + octave;
-};
-
-// Function to convert ticks to seconds based on tempo and PPQ
-const ticksToSeconds = (ticks: number, bpm: number, ppq: number): number => {
-    return (ticks / ppq) * (60 / bpm);
+  const [, root, quality] = match;
+  return { root, quality: quality || '' }; // Default quality to empty string (major)
 }
 
-// Function to convert seconds to ticks
-const secondsToTicks = (seconds: number, bpm: number, ppq: number): number | string => {
-    // Calculate ticks per second
-    const ticksPerSecond = ppq * (bpm / 60);
-    // Calculate total ticks
-    const totalTicks = Math.round(seconds * ticksPerSecond);
-    // midi-writer-js uses 'T' prefix for absolute ticks
-    return `T${totalTicks}`;
+// Function to convert a note name (e.g., "C#4") to a MIDI number
+function noteNameToMidi(noteName: string): number | null {
+  try {
+    // Use Tone.js's built-in conversion
+    return Tone.Frequency(noteName).toMidi();
+  } catch (e) {
+    console.warn(`Could not convert note name to MIDI: ${noteName}`, e);
+    return null;
+  }
 }
 
+// Main function to generate MIDI data from chord results
+export function generateMidiFromChords(chords: ChordResult[], bpm: number = 120): Uint8Array {
+  const midi = new Midi();
+  midi.header.setTempo(bpm); // Set a default tempo, could be estimated from audio later
 
-export const generateMidiFromChords = (
-    chordEvents: ChordEvent[],
-    bpm: number = 120 // Default tempo
-): string => {
-  const track = new Track();
-  track.setTempo(bpm);
+  const track = midi.addTrack();
+  track.name = "Detected Chords";
 
-  const ppq = MidiWriter.Constants.HEADER_CHUNK_DIVISION; // Pulses per quarter note (default is 128)
+  chords.forEach(chordInfo => {
+    const parsed = parseChordName(chordInfo.chord);
+    if (!parsed) return; // Skip if chord name couldn't be parsed
 
-  // Add chord events to the track
-  chordEvents.forEach((event) => {
-    const noteStrings = chordToMidiNotes(event.chord); // Get note strings
-    const startTickRaw = secondsToTicks(event.startTime, bpm, ppq);
-    const durationTicks = secondsToTicks(event.endTime - event.startTime, bpm, ppq);
+    const { root, quality } = parsed;
+    const intervals = chordQualityIntervals[quality];
 
-    // midi-writer-js needs duration in ticks format 'Txxx'
-    // Ensure duration is at least 1 tick if calculation results in 0
-    const duration = typeof durationTicks === 'string' && parseInt(durationTicks.substring(1)) > 0
-        ? durationTicks
-        : 'T1';
+    if (!intervals) {
+      console.warn(`Unknown chord quality: ${quality} in chord ${chordInfo.chord}`);
+      return; // Skip if quality is not recognized
+    }
 
-    // Convert startTick and duration to numbers if they are in 'Txxx' format
-    const startTickValue = typeof startTickRaw === 'string' ? parseInt(startTickRaw.substring(1)) : startTickRaw;
-    const durationValue = typeof duration === 'string' ? parseInt(duration.substring(1)) : 1; // Use raw tick number, default to 1 if calculation was 0
+    // Determine the octave (e.g., middle C range)
+    const octave = 4;
+    const rootNoteName = `${root}${octave}`;
+    const rootMidi = noteNameToMidi(rootNoteName);
 
-    // Create a separate NoteEvent for each note in the chord
-    noteStrings.forEach((note) => {
-        // @ts-ignore - Suppress persistent TS error, likely due to faulty/missing types for midi-writer-js NoteEvent constructor
-        // @ts-ignore - Re-applying suppression for persistent TS error
-        track.addEvent(
-          new NoteEvent({
-            pitch: note, // Pass single note string directly
-            startTick: startTickValue,
-            durationTicks: durationValue,
-          })
-        );
+    if (rootMidi === null) return; // Skip if root note couldn't be converted
+
+    const duration = chordInfo.end - chordInfo.start;
+    const startTime = chordInfo.start;
+
+    // Add notes for the chord
+    intervals.forEach(interval => {
+      const noteMidi = rootMidi + interval;
+      // Ensure MIDI note number is within valid range (0-127)
+      if (noteMidi >= 0 && noteMidi <= 127) {
+        track.addNote({
+          midi: noteMidi,
+          time: startTime,
+          duration: duration,
+          velocity: 0.8 // Default velocity
+        });
+      }
     });
   });
 
-  const writer = new Writer([track]);
-  // Return MIDI data as a base64 encoded string
-  return writer.dataUri();
-};
-
-// Example usage (for testing):
-// const chords: ChordEvent[] = [
-//   { startTime: 0, endTime: 2, chord: 'Cmaj' },
-//   { startTime: 2, endTime: 4, chord: 'Gmaj' },
-//   { startTime: 4, endTime: 6, chord: 'Am' },
-//   { startTime: 6, endTime: 8, chord: 'Fmaj' },
-// ];
-// const midiDataUri = generateMidiFromChords(chords);
-// console.log(midiDataUri); // Output: data:audio/midi;base64,...
+  return midi.toArray(); // Return MIDI data as Uint8Array
+}

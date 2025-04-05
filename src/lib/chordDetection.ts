@@ -1,36 +1,78 @@
-// Placeholder for essentia.js integration
-// Note: Essentia.js setup and usage needs careful handling
-// to avoid bundling Node.js modules (like 'fs') in client-side code.
-// This might involve dynamic imports, Web Workers, or server-side processing via API routes.
+import Essentia from 'essentia.js';
+import { EssentiaWASM } from 'essentia.js/dist/essentia-wasm'; // Use specific path for WASM
 
-// Placeholder type for chord results
-interface ChordResult {
-  startTime: number;
-  endTime: number;
+// Define the expected structure for chord results
+export interface ChordResult {
   chord: string;
+  start: number;
+  end: number;
 }
 
-// Placeholder function for audio analysis
-export const analyzeAudioForChords = async (
-  audioBuffer: ArrayBuffer | AudioBuffer // Accept ArrayBuffer from file or AudioBuffer from Web Audio API
-): Promise<ChordResult[]> => {
-  console.log('Placeholder: Analyzing audio buffer...');
+// Function to decode audio data (assuming input is ArrayBuffer)
+async function decodeAudioData(audioBuffer: ArrayBuffer): Promise<Float32Array> {
+  const audioCtx = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)();
+  const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
+  // Use mono audio for chord detection
+  const monoChannel = decodedBuffer.getChannelData(0);
+  return monoChannel;
+}
 
-  // --- TODO: Implement actual essentia.js logic here ---
-  // 1. Initialize Essentia.js (potentially asynchronously)
-  // 2. Decode audio data if necessary (e.g., using Web Audio API's decodeAudioData)
-  // 3. Run Essentia algorithms (e.g., AudioLoader, FrameCutter, Windowing, Spectrum, SpectralPeaks, HPCP, ChordsDetection)
-  // 4. Format results into ChordResult[]
+// Main function to detect chords
+export async function detectChords(audioBuffer: ArrayBuffer): Promise<ChordResult[]> {
+  try {
+    const essentia = new Essentia(EssentiaWASM); // Initialize Essentia with WASM
 
-  // Simulate some delay and return mock data
-  await new Promise(resolve => setTimeout(resolve, 1000));
+    // Decode audio buffer to Float32Array
+    const audioVector = essentia.arrayToVector(await decodeAudioData(audioBuffer));
 
-  console.log('Placeholder: Returning mock chord data.');
-  // Return mock data for now
-  return [
-    { startTime: 0.5, endTime: 2.1, chord: 'Am' },
-    { startTime: 2.1, endTime: 3.8, chord: 'G' },
-    { startTime: 3.8, endTime: 5.5, chord: 'Cmaj7' },
-    { startTime: 5.5, endTime: 7.0, chord: 'F' },
-  ];
-};
+    // Perform chord detection using Essentia's ChordsDetection algorithm
+    // Adjust parameters as needed for accuracy vs. performance
+    const chordsResult = essentia.ChordsDetection(
+      audioVector, // input audio vector
+      16384,       // frameSize (adjust based on experimentation)
+      4096,        // hopSize (adjust based on experimentation)
+      0.5,         // magnitudeThreshold (adjust sensitivity)
+      100,         // minChordDuration (in frames, adjust as needed)
+      "degara",    // profile type (e.g., "degara", "wef", "krumhansl")
+      false,       // hpcf (use Harmonic Pitch Class Profile)
+      44100        // sampleRate (assuming 44.1kHz)
+    );
+
+    // Process the results into the desired format
+    const chords: string[] = chordsResult.chords;
+    const startTimes: number[] = chordsResult.startTimes;
+    const endTimes: number[] = chordsResult.endTimes;
+
+    const formattedResults: ChordResult[] = [];
+    for (let i = 0; i < chords.length; i++) {
+      // Filter out 'N' (no chord) results if desired
+      if (chords[i] !== 'N') {
+        formattedResults.push({
+          chord: chords[i],
+          start: startTimes[i],
+          end: endTimes[i],
+        });
+      }
+    }
+
+    console.log("Chord detection successful:", formattedResults.length, "chords found.");
+    return formattedResults;
+
+  } catch (error) {
+    console.error("Error during chord detection:", error);
+    throw new Error(`Chord detection failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// Helper function to fetch and load the WASM module if running in Node.js
+// This might be needed depending on the environment Essentia runs in.
+// For server-side Next.js, direct import might work, but this is safer.
+async function loadWasm() {
+  // In a Node.js environment, you might need to load the WASM file explicitly.
+  // This depends on how essentia.js handles WASM loading in different environments.
+  // If running server-side, ensure the WASM file is accessible.
+  // For now, assume direct import works or handle WASM loading as needed.
+}
+
+// Call loadWasm if necessary, e.g., at module initialization
+// loadWasm();
