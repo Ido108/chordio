@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import FileUploadForm from '@/components/FileUploadForm';
 import YouTubeForm from '@/components/YouTubeForm';
