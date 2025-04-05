@@ -54,7 +54,9 @@ export default function Home() {
 
         {/* Tab content */}
         <div className="mt-8">
-          {activeTab === 'file' ? <FileUploadForm /> : <YouTubeForm />}
+          {/* Temporarily disable FileUploadForm due to build issues */}
+          {activeTab === 'file' ? <p className="text-red-500 p-4 border border-red-300 rounded bg-red-50">File upload is temporarily disabled while troubleshooting build errors.</p> : <YouTubeForm />}
+          {/* {activeTab === 'file' ? <FileUploadForm /> : <YouTubeForm />} */}
         </div>
 
         {/* How it works section */}
