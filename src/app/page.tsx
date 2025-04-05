@@ -1,8 +1,15 @@
 "use client";
 
 import React, { useState } from 'react';
-import FileUploadForm from '@/components/FileUploadForm';
+import dynamic from 'next/dynamic';
+// import FileUploadForm from '@/components/FileUploadForm'; // Import dynamically
 import YouTubeForm from '@/components/YouTubeForm';
+
+// Dynamically import FileUploadForm only on the client-side
+const FileUploadForm = dynamic(() => import('@/components/FileUploadForm'), {
+  ssr: false, // Disable server-side rendering for this component
+  loading: () => <p>Loading file uploader...</p> // Optional loading state
+});
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'file' | 'youtube'>('file');
