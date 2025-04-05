@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs'; // Use Node.js runtime for ytdl-core compatibility
 export const preferredRegion = ['iad1']; // Use the region closest to your users
 
 /**
