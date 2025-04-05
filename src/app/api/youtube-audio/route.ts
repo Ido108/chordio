@@ -6,10 +6,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-export const config = {
-  runtime: 'edge',
-  regions: ['iad1'], // Use the region closest to your users
-};
+export const runtime = 'edge';
+export const preferredRegion = ['iad1']; // Use the region closest to your users
 
 /**
  * API route to extract audio from YouTube videos
