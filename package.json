@@ -1,35 +1,31 @@
 {
-  "name": "chord-extractor-nextjs",
+  "name": "chordio",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "deploy": "vercel --prod"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@tonejs/midi": "^2.0.28",
     "essentia.js": "^0.1.3",
-    "geist": "^1.3.1",
-    "jzz": "^1.7.6",
-    "midi-writer-js": "^2.1.4",
-    "next": "^14.2.26",
-    "react": "^18",
-    "react-dom": "^18",
-    "tone": "^14.7.77",
-    "ytdl-core": "^4.11.5",
-    "autoprefixer": "^10.0.1",
-    "postcss": "^8",
-    "tailwindcss": "^3.3.0"
+    "midi-writer-js": "^3.1.1",
+    "next": "15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tone": "^15.0.4",
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.26",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4",
+    "tailwindcss": "^4",
     "typescript": "^5"
   }
 }
