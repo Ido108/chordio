@@ -2,9 +2,9 @@
 # Specifies system packages and build configuration for Railway deployments.
 
 [phases.setup]
-# Install yt-dlp using Nix packages
-# This makes the yt-dlp command available for youtube-dl-exec
-nixPkgs = ["...", "yt-dlp"] # "..." includes default Nix packages
+# Install yt-dlp and Python using Nix packages
+# yt-dlp requires Python, and youtube-dl-exec checks for it during install.
+nixPkgs = ["...", "yt-dlp", "python3"] # Add python3
 
 [start]
 # Command to start the Next.js application in production mode
