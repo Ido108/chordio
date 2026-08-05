@@ -7,6 +7,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Chordio - Chord Extraction",
   description: "Extract chords from audio files or YouTube links",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/app-icon.png",
+  },
 };
 
 export default function RootLayout({
