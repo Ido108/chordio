@@ -1,3 +1,13 @@
+<!-- repo-branding:start -->
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-horizontal-light.png">
+    <source media="(prefers-color-scheme: light)" srcset=".github/assets/logo-horizontal.png">
+    <img src=".github/assets/logo-horizontal.png" alt="Chordio" width="720">
+  </picture>
+</p>
+<!-- repo-branding:end -->
+
 # Chordio - Chord Extraction Web App
 
 Chordio is a full-stack web application that extracts chord progressions from audio files or YouTube links and generates a synchronized MIDI representation.
